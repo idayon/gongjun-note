@@ -298,16 +298,31 @@ textarea{width:100%;min-height:190px;background:var(--surface);color:var(--ink);
   color:var(--accent);border-radius:2px;font-weight:600;text-align:center}
 input[type=file]{display:none}
 .hidden{display:none}
+/* 공준노트: 공고 찾기 · 내 공고 */
+.fl{display:grid;gap:6px;margin:12px 0}
+.fl>span{font-size:12px;color:var(--muted)}
+.fchips{display:flex;flex-wrap:wrap;gap:6px}
+.fc{border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:18px;padding:6px 12px;font-size:13px}
+.fc.on{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.row2{display:flex;gap:8px;margin:0 0 12px}
+.row2 .btn{flex:1;padding:11px 10px;text-align:center;text-decoration:none;font-size:14px}
+.jctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+.jctl button,.jctl select,.jctl input{font:inherit;font-size:12.5px;padding:6px 10px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);border-radius:3px}
+.jctl button.pass{border-color:var(--ok);color:var(--ok)} .jctl button.fail{border-color:var(--no);color:var(--no)}
+.form label{display:grid;gap:4px;font-size:13px;color:var(--muted);margin:12px 0}
+.form input{width:100%;padding:12px;border:1px solid var(--rule);border-radius:2px;background:var(--surface);color:var(--ink);font-size:14px}
+.plan{border:1px solid var(--accent);border-radius:3px;padding:16px;margin:14px 0;line-height:1.8;font-size:14px}
+.plan b{color:var(--accent)}
 </style>
 </head>
 <body>
 <div id="drawer"><div class="dim"></div><div class="panel">
   <h3>메뉴</h3>
-  <button class="mi" data-go="home">오늘 · 문제풀이<small>오늘 계획과 꾸러미</small></button>
-  <button class="mi" data-go="cal">캘린더<small>공고 일정 월간 보기</small></button>
-  <button class="mi" data-go="jobs">공고 현황<small>기관별 전형 진행 상태</small></button>
-  <button class="mi" data-go="week">주간 공부 계획</button>
-  <button class="mi" data-go="calset">캘린더 설정<small>데이터 주소 · 새로고침</small></button>
+  <button class="mi" data-go="home">공부<small>과목별 문제 · 정리 · 카드</small></button>
+  <button class="mi" data-go="cal">캘린더<small>담은 공고 일정 월간 보기</small></button>
+  <button class="mi" data-go="jobs">내 공고<small>전형 진행 상태 · 직접 입력</small></button>
+  <button class="mi" data-go="find">공고 찾기<small>공공기관 채용공고 골라 담기</small></button>
+  <button class="mi" data-go="backup">백업 · 설정<small>이 폰의 데이터 내보내기 · 불러오기</small></button>
 </div></div>
 <div id="shell">
   <div id="scroll"><div class="wrap" id="app"></div></div>
@@ -593,14 +608,27 @@ function korDate(iso){ var p=iso.split("-"); var d=new Date(+p[0],+p[1]-1,+p[2])
 var CAL=null, calErr=null, calSrc="", calAt=null;
 function calURL(){ try{ return localStorage.getItem("cal.url")||"./calendar.json"; }catch(e){ return "./calendar.json"; } }
 function applyCal(j){ CAL=j; if(j&&j.study&&Array.isArray(j.study.days)) window.SCHEDULE=j.study; }
+/* ===== 공준노트: 내 데이터는 이 폰에만 저장 ===== */
+var MYKEY="gj.my.v1", FREE_LIMIT=3, FEED=null, feedErr=null;
+function myLoad(){
+  var d=null; try{ d=JSON.parse(localStorage.getItem(MYKEY)||"null"); }catch(e){}
+  if(!d||typeof d!=="object") d={};
+  if(!Array.isArray(d.jobs)) d.jobs=[]; if(!Array.isArray(d.events)) d.events=[];
+  return d;
+}
+function mySave(){
+  CAL.updated=ymd(new Date());
+  try{ localStorage.setItem(MYKEY,JSON.stringify(CAL)); return true; }catch(e){ alert("저장 공간이 부족합니다. 백업 후 오래된 공고를 지워 주세요."); return false; }
+}
+function isPro(){ try{ return localStorage.getItem("gj.pro")==="1"; }catch(e){ return false; } }
+function slotsLeft(){ return isPro()?Infinity:Math.max(0,FREE_LIMIT-CAL.jobs.length); }
 function loadCal(cb){
-  var u=calURL(); calSrc=u;
-  if(typeof fetch!=="function"){ calErr="fetch 미지원"; cb&&cb(); return; }
-  var sep=u.indexOf("?")>=0?"&":"?";
-  fetch(u+sep+"t="+Date.now(),{cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
-  .then(function(j){ applyCal(j); calErr=null; calAt=new Date(); try{localStorage.setItem("cal.cache",JSON.stringify(j));}catch(e){} cb&&cb(); })
-  .catch(function(e){ calErr=e.message||String(e);
-    if(!CAL){ try{ var c=localStorage.getItem("cal.cache"); if(c) applyCal(JSON.parse(c)); }catch(_){} }
+  CAL=myLoad(); calErr=null;
+  if(typeof fetch!=="function"){ cb&&cb(); return; }
+  fetch("./feed.json?t="+Date.now(),{cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+  .then(function(j){ FEED=j; feedErr=null; try{localStorage.setItem("gj.feed.cache",JSON.stringify(j));}catch(e){} cb&&cb(); })
+  .catch(function(e){ feedErr=e.message||String(e);
+    if(!FEED){ try{ var c=localStorage.getItem("gj.feed.cache"); if(c) FEED=JSON.parse(c); }catch(_){} }
     cb&&cb(); });
 }
 function pISO(iso){ var p=String(iso).split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
@@ -671,7 +699,7 @@ function openDrawer(){
   d.querySelector(".dim").onclick=closeDrawer;
 }
 function closeDrawer(){ document.getElementById("drawer").classList.remove("open"); }
-function go(g){ if(g==="home") shelf(); else if(g==="cal") calView(); else if(g==="jobs") jobsView(); else if(g==="week") weekView(); else if(g==="calset") calSetView(); }
+function go(g){ if(g==="home") shelf(); else if(g==="cal") calView(); else if(g==="jobs") myJobsView(); else if(g==="find") findView(); else if(g==="add") addJobView(); else if(g==="backup") backupView(); else if(g==="upgrade") upgradeView(); }
 function topMenu(title){
   return '<div class="masthead" style="padding-top:18px"><div class="mrow"><button class="menubtn" id="mnu" aria-label="메뉴">☰</button><h1>'+esc(title)+'</h1></div></div>';
 }
@@ -803,6 +831,179 @@ function jobsView(){
   });
 }
 
+/* ===== 공고 찾기 (알리오 공공기관 채용정보 · feed.json) ===== */
+var FHIRE=[["정규직","정규직"],["무기계약직","무기계약직"],["비정규직","비정규직"],["채용형 인턴","청년인턴(채용형)"],["체험형 인턴","청년인턴(체험형)"]];
+var FSE=["신입","경력"];
+var ff=null, fqTimer=null;
+function ffLoad(){
+  try{ ff=JSON.parse(localStorage.getItem("gj.ff")||"null"); }catch(e){ ff=null; }
+  if(!ff||!Array.isArray(ff.hire)||!Array.isArray(ff.se)) ff={hire:["정규직","청년인턴(채용형)"],se:["신입"],rgn:"",q:""};
+}
+function ffSave(){ try{ localStorage.setItem("gj.ff",JSON.stringify(ff)); }catch(e){} }
+function md(iso){ if(!iso) return ""; var p=iso.split("-"); return (+p[1])+"."+(+p[2]); }
+function feedLive(){ return ((FEED&&FEED.items)||[]).filter(function(it){ return it.end&&dayDiff(it.end)>=0; }); }
+function feedMatch(it){
+  if(ff.hire.length&&!(it.hire||[]).some(function(h){ return ff.hire.indexOf(h)>=0; })) return false;
+  if(ff.se.length&&!ff.se.some(function(s){ return String(it.se||"").indexOf(s)>=0; })) return false;
+  if(ff.rgn&&(it.rgn||[]).indexOf(ff.rgn)<0) return false;
+  if(ff.q){ var q=ff.q.replace(/\s+/g,""); if(String(it.org+it.title).replace(/\s+/g,"").indexOf(q)<0) return false; }
+  return true;
+}
+function inCal(sn){ return CAL.jobs.some(function(j){ return j.src==="alio-"+sn; }); }
+function feedCard(it){
+  var d=dayDiff(it.end), added=inCal(it.sn);
+  return '<div class="job"><div class="jt"><div><div class="jo">'+esc(it.org)+'</div><div class="jr">'+esc(it.title)+'</div></div>'+
+    '<span class="badge'+(d<=3?' no':'')+'">'+(d===0?'오늘 마감':'D-'+d)+'</span></div>'+
+    '<p class="note" style="margin:6px 0 10px">'+esc([(it.hire||[]).join(", "),it.se,it.nope?it.nope+"명":"",(it.rgn||[]).join(", ")].filter(Boolean).join(" · "))+
+    '<br>접수 '+md(it.start)+' ~ '+md(it.end)+'</p>'+
+    '<div class="row2">'+(it.url?'<a class="btn quiet" href="'+esc(it.url)+'" target="_blank" rel="noopener noreferrer">공고 보기 ↗</a>':'')+
+    '<button class="btn'+(added?' quiet':'')+'" data-add="'+esc(it.sn)+'"'+(added?' disabled':'')+'>'+(added?'담김 ✓':'캘린더에 담기')+'</button></div></div>';
+}
+function slotText(){ return isPro()?'무제한':'남은 칸 '+slotsLeft()+'/'+FREE_LIMIT; }
+function renderFindList(){
+  var box=document.getElementById("flist"); if(!box) return;
+  var list=feedLive().filter(feedMatch).sort(function(a,b){ return a.end<b.end?-1:(a.end>b.end?1:0); });
+  var h='<div class="sectitle">'+list.length+'건 · 마감 빠른 순 · 캘린더 '+slotText()+'</div>';
+  if(!list.length) h+='<p class="note" style="margin-top:12px">조건에 맞는 공고가 없어요. 고용형태나 경력을 더 골라 보세요.</p>';
+  list.slice(0,150).forEach(function(it){ h+=feedCard(it); });
+  if(list.length>150) h+='<p class="note">150건까지만 보여요. 지역이나 검색어로 좁혀 보세요.</p>';
+  box.innerHTML=h;
+  Array.prototype.forEach.call(box.querySelectorAll("[data-add]"),function(b){ b.onclick=function(){ addFromFeed(b.getAttribute("data-add")); }; });
+}
+function findView(){
+  view="find"; setDock(null); calcToggle(false); toTop(); if(!ff) ffLoad();
+  var h=topMenu("공고 찾기");
+  if(!FEED){ h+='<div class="warn">공고 목록을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.'+(feedErr?' ('+esc(feedErr)+')':'')+'</div>'; app.innerHTML=h; bindMenu(); return; }
+  var items=feedLive(), rg={};
+  items.forEach(function(it){ (it.rgn||[]).forEach(function(r){ rg[r]=1; }); });
+  h+='<p class="note" style="margin-top:0">공공기관 채용정보(알리오) · '+esc(FEED.updated||"")+' 기준 · 진행 중 '+items.length+'건</p>';
+  h+='<div class="fl"><span>고용형태 (여러 개 선택)</span><div class="fchips">'+FHIRE.map(function(x){
+      return '<button class="fc'+(ff.hire.indexOf(x[1])>=0?' on':'')+'" data-fh="'+esc(x[1])+'">'+esc(x[0])+'</button>'; }).join("")+'</div></div>';
+  h+='<div class="fl"><span>신입 · 경력</span><div class="fchips">'+FSE.map(function(s){
+      return '<button class="fc'+(ff.se.indexOf(s)>=0?' on':'')+'" data-fs="'+esc(s)+'">'+esc(s)+'</button>'; }).join("")+'</div></div>';
+  h+='<div class="fl"><span>근무 지역</span><select class="url" id="frg"><option value="">전체</option>'+Object.keys(rg).sort().map(function(r){
+      return '<option'+(r===ff.rgn?' selected':'')+'>'+esc(r)+'</option>'; }).join("")+'</select></div>';
+  h+='<input class="url" id="fq" placeholder="기관명이나 공고 제목으로 검색" value="'+esc(ff.q)+'">';
+  h+='<div id="flist"></div>';
+  app.innerHTML=h; bindMenu();
+  function toggle(arr,v,btn){ var i=arr.indexOf(v); if(i>=0) arr.splice(i,1); else arr.push(v); btn.classList.toggle("on",i<0); ffSave(); renderFindList(); }
+  Array.prototype.forEach.call(app.querySelectorAll("[data-fh]"),function(b){ b.onclick=function(){ toggle(ff.hire,b.getAttribute("data-fh"),b); }; });
+  Array.prototype.forEach.call(app.querySelectorAll("[data-fs]"),function(b){ b.onclick=function(){ toggle(ff.se,b.getAttribute("data-fs"),b); }; });
+  document.getElementById("frg").onchange=function(){ ff.rgn=this.value; ffSave(); renderFindList(); };
+  document.getElementById("fq").oninput=function(){ var v=this.value; clearTimeout(fqTimer); fqTimer=setTimeout(function(){ ff.q=v.trim(); ffSave(); renderFindList(); },250); };
+  renderFindList();
+}
+function addFromFeed(sn){
+  if(slotsLeft()<=0){ upgradeView(); return; }
+  var it=feedLive().filter(function(x){ return String(x.sn)===String(sn); })[0]; if(!it||inCal(it.sn)) return;
+  CAL.jobs.push({ id:"alio-"+it.sn, src:"alio-"+it.sn, org:it.org, role:it.title, url:it.url||"",
+    memo:[(it.hire||[]).join(", "),it.se,(it.rgn||[]).join(", ")].filter(Boolean).join(" · "),
+    stages:[{type:"서류",label:"원서 마감",date:it.end,result:"pending",note:it.start?"접수 "+md(it.start)+"~":""}] });
+  if(mySave()) renderFindList();
+}
+
+/* ===== 무료 한도 · 업그레이드 ===== */
+function upgradeView(){
+  view="upgrade"; setDock(null); calcToggle(false); toTop();
+  var h=topMenu("업그레이드");
+  h+='<div class="plan"><b>무료</b><br>캘린더에 공고 <b>'+FREE_LIMIT+'개</b>까지 담기 · 과목 공부 · 캘린더 · 백업</div>';
+  h+='<div class="plan"><b>프리미엄</b> (준비 중)<br>공고 <b>무제한</b>으로 담기 · 마감 알림 · 관심 조건 저장</div>';
+  h+='<p class="note">지금은 무료 칸 '+FREE_LIMIT+'개를 모두 썼어요. 지원이 끝난 공고를 내 공고에서 지우면 다시 담을 수 있어요. 프리미엄은 곧 열릴 예정이에요.</p>';
+  h+='<div class="actions" style="margin-top:14px"><button class="btn" id="upmy">내 공고 정리하러 가기</button></div>';
+  app.innerHTML=h; bindMenu();
+  document.getElementById("upmy").onclick=myJobsView;
+}
+
+/* ===== 내 공고 ===== */
+function myJobsView(){
+  view="jobs"; setDock(null); calcToggle(false); toTop();
+  var h=topMenu("내 공고");
+  h+='<p class="note" style="margin-top:0">캘린더에 담은 공고 '+CAL.jobs.length+'개 · '+slotText()+'</p>';
+  h+='<div class="row2" style="margin-top:10px"><button class="btn ghost" id="gofind">공고 찾기</button><button class="btn ghost" id="goadd">직접 입력</button></div>';
+  if(!CAL.jobs.length) h+='<div class="empty"><h2>아직 담은 공고가 없어요</h2><p>공고 찾기에서 담거나 직접 입력하세요. 담은 공고의 일정은 캘린더에 자동으로 들어갑니다.</p></div>';
+  var list=CAL.jobs.slice().sort(function(a,b){ var ka=jobSortKey(a), kb=jobSortKey(b); return ka<kb?-1:(ka>kb?1:0); });
+  list.forEach(function(j){
+    var card=jobCard(j), nx=jobNext(j), ctl='<div class="jctl">';
+    if(nx) ctl+='<span>'+esc(nx.label||nx.type||"")+'</span><button class="pass" data-res="pass" data-id="'+esc(j.id)+'">통과·완료</button><button class="fail" data-res="fail" data-id="'+esc(j.id)+'">불합격</button>';
+    ctl+='</div><div class="jctl"><select data-st="'+esc(j.id)+'"><option>필기</option><option>인성검사</option><option>면접</option><option>최종 발표</option></select>'+
+      '<input type="date" data-sd="'+esc(j.id)+'"><button data-sadd="'+esc(j.id)+'">단계 추가</button><button data-del="'+esc(j.id)+'">삭제</button></div>';
+    h+=card.replace(/<\/div>$/, ctl+'</div>');
+  });
+  app.innerHTML=h; bindMenu();
+  function find(id){ return CAL.jobs.filter(function(j){ return j.id===id; })[0]; }
+  document.getElementById("gofind").onclick=findView;
+  document.getElementById("goadd").onclick=addJobView;
+  Array.prototype.forEach.call(app.querySelectorAll("[data-res]"),function(b){ b.onclick=function(){
+    var j=find(b.getAttribute("data-id")), nx=j&&jobNext(j); if(!nx) return; nx.result=b.getAttribute("data-res"); mySave(); myJobsView(); }; });
+  Array.prototype.forEach.call(app.querySelectorAll("[data-sadd]"),function(b){ b.onclick=function(){
+    var id=b.getAttribute("data-sadd"), j=find(id), d=app.querySelector('[data-sd="'+id+'"]').value, t=app.querySelector('[data-st="'+id+'"]').value;
+    if(!d){ alert("날짜를 골라 주세요."); return; }
+    j.stages.push({type:/발표/.test(t)?"최종":t,label:t,date:d,result:"pending"});
+    j.stages.sort(function(a,c){ return (a.date||"9")<(c.date||"9")?-1:1; });
+    mySave(); myJobsView(); }; });
+  Array.prototype.forEach.call(app.querySelectorAll("[data-del]"),function(b){ b.onclick=function(){
+    var j=find(b.getAttribute("data-del")); if(!j||!confirm("'"+j.org+"' 공고를 지울까요? 캘린더에서도 빠집니다.")) return;
+    CAL.jobs=CAL.jobs.filter(function(x){ return x!==j; }); mySave(); myJobsView(); }; });
+}
+
+/* ===== 공고 직접 입력 ===== */
+function addJobView(){
+  if(slotsLeft()<=0){ upgradeView(); return; }
+  view="add"; setDock(null); calcToggle(false); toTop();
+  var h=topMenu("공고 직접 입력")+'<div class="form">'+
+    '<label>기관 이름<input id="ja-org" placeholder="예: 한국수자원공사"></label>'+
+    '<label>직무 · 공고 이름 (선택)<input id="ja-role" placeholder="예: 일반직 신입 (사무)"></label>'+
+    '<label>원서 마감일<input type="date" id="ja-doc"></label>'+
+    '<label>필기 날짜 (선택)<input type="date" id="ja-test"></label>'+
+    '<label>면접 날짜 (선택)<input type="date" id="ja-int"></label>'+
+    '<label>공고 주소 (선택)<input id="ja-url" placeholder="https://"></label>'+
+    '<label>메모 (선택)<input id="ja-memo"></label></div>'+
+    '<p class="note" style="margin-top:4px">캘린더 '+slotText()+'</p>'+
+    '<div class="row2" style="margin-top:12px"><button class="btn quiet" id="ja-cancel">취소</button><button class="btn" id="ja-save">저장</button></div>';
+  app.innerHTML=h; bindMenu();
+  document.getElementById("ja-cancel").onclick=myJobsView;
+  document.getElementById("ja-save").onclick=function(){
+    function v(id){ return document.getElementById(id).value.trim(); }
+    if(!v("ja-org")){ alert("기관 이름을 넣어 주세요."); return; }
+    if(!v("ja-doc")){ alert("원서 마감일을 골라 주세요."); return; }
+    var st=[{type:"서류",label:"원서 마감",date:v("ja-doc"),result:"pending"}];
+    if(v("ja-test")) st.push({type:"필기",label:"필기",date:v("ja-test"),result:"pending"});
+    if(v("ja-int")) st.push({type:"면접",label:"면접",date:v("ja-int"),result:"pending"});
+    var url=v("ja-url"); if(url&&!/^https?:\/\//.test(url)) url="";
+    CAL.jobs.push({id:"my-"+Date.now(),org:v("ja-org"),role:v("ja-role"),url:url,memo:v("ja-memo"),stages:st});
+    if(mySave()) myJobsView();
+  };
+}
+
+/* ===== 백업 · 설정 ===== */
+var BK_SKIP=/^(gj\.feed\.cache|cal\.cache|alio\.cache)$/;
+function backupView(){
+  view="backup"; setDock(null); calcToggle(false); toTop();
+  var h=topMenu("백업 · 설정")+
+    '<p class="calinfo">공준노트의 모든 기록(담은 공고, 풀이 기록, 단어카드)은 <b>이 폰의 브라우저에만</b> 저장돼요. 서버로 보내지 않아요.<br>'+
+    '폰을 바꾸거나 브라우저 기록을 지우면 사라지니 가끔 백업 파일을 저장해 두세요. 아이폰은 <b>홈 화면에 추가</b>해서 쓰면 기록이 더 안전하게 남아요.</p>'+
+    '<div class="actions"><button class="btn" id="bk-out">백업 파일 저장</button></div>'+
+    '<div class="actions" style="margin-top:10px"><label class="filebtn" for="bk-in">백업 파일 불러오기</label><input type="file" id="bk-in" accept=".json,application/json"></div>'+
+    '<div class="sectitle">요금제</div><p class="calinfo">'+(isPro()?'프리미엄 사용 중':'무료 · 캘린더에 공고 '+FREE_LIMIT+'개까지 (지금 '+CAL.jobs.length+'개)')+'</p>';
+  app.innerHTML=h; bindMenu();
+  document.getElementById("bk-out").onclick=function(){
+    var data={}; for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(!BK_SKIP.test(k)) data[k]=localStorage.getItem(k); }
+    var blob=new Blob([JSON.stringify({app:"gongjun-note",v:1,at:new Date().toISOString(),data:data})],{type:"application/json"});
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="공준노트-백업-"+ymd(new Date())+".json";
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
+  };
+  document.getElementById("bk-in").onchange=function(){
+    var f=this.files&&this.files[0]; if(!f) return;
+    var rd=new FileReader(); rd.onload=function(){
+      try{ var j=JSON.parse(rd.result); if(!j||j.app!=="gongjun-note"||!j.data) throw new Error("공준노트 백업 파일이 아니에요.");
+        if(!confirm("백업 파일로 지금 기록을 덮어쓸까요?")) return;
+        Object.keys(j.data).forEach(function(k){ if(k!=="gj.pro") localStorage.setItem(k,j.data[k]); });
+        location.reload();
+      }catch(e){ alert(e.message||"파일을 읽지 못했어요."); }
+    }; rd.readAsText(f);
+  };
+}
+
 /* ===== 캘린더 설정 ===== */
 function calSetView(){
   view="calset"; setDock(null); calcToggle(false); toTop();
@@ -821,8 +1022,19 @@ function calSetView(){
   document.getElementById("ud").onclick=function(){ try{localStorage.removeItem("cal.url");}catch(e){} loadCal(calSetView); };
 }
 
+function upcomingHTML(){
+  var today=ymd(new Date()), seen={};
+  var ev=allEvents(false).filter(function(e){ return e.date>=today; }).map(function(e){ return {date:e.date,title:e.org+" · "+e.label}; })
+    .filter(function(e){ var k=e.date+e.title; if(seen[k]) return false; seen[k]=1; return true; }).slice(0,6);
+  var h='<div class="sectitle">다가오는 일정</div>';
+  if(!ev.length) return h+'<p class="note" style="margin-top:12px">아직 담은 공고가 없어요. 관심 있는 공고를 담으면 마감일이 여기와 캘린더에 뜹니다.</p>'+
+    '<div class="actions" style="margin-top:10px"><button class="btn ghost" id="gofind2">공고 찾으러 가기</button></div>';
+  ev.forEach(function(e){ var n=dayDiff(e.date);
+    h+='<div class="evt"><span class="dd">'+(n===0?'D-DAY':'D-'+n)+'</span><span class="ed">'+(+e.date.split("-")[1])+'.'+(+e.date.split("-")[2])+'</span><span class="et">'+esc(e.title)+'</span></div>'; });
+  return h;
+}
 function schedHTML(){
-  var S=window.SCHEDULE; if(!S) return "";
+  var S=window.SCHEDULE; if(!S) return upcomingHTML();
   var today=ymd(new Date());
   var day=null; (S.days||[]).forEach(function(d){ if(d.date===today) day=d; });
   var h='<div class="today"><div class="td">오늘 · '+korDate(today)+'</div>';
@@ -860,6 +1072,7 @@ function bindSched(){
       try{localStorage.setItem(SK2,JSON.stringify(sdone));}catch(e){} shelf(); };
   });
   var wk=document.getElementById("wk"); if(wk) wk.onclick=weekView;
+  var gf=document.getElementById("gofind2"); if(gf) gf.onclick=findView;
 }
 function weekView(){
   view="week"; setDock(null); calcToggle(false); toTop();
@@ -876,7 +1089,7 @@ function weekView(){
 
 function shelf(){
   view="shelf"; calcToggle(false); cur=null; setDock(null); toTop();
-  var h='<div class="masthead"><div class="mrow"><button class="menubtn" id="mnu" aria-label="메뉴">☰</button><h1>문제 드릴</h1></div><p>문제 · 개념 정리 · 공식 조립 · 단어카드</p></div>'+schedHTML();
+  var h='<div class="masthead"><div class="mrow"><button class="menubtn" id="mnu" aria-label="메뉴">☰</button><h1>공준노트</h1></div><p>공부 · 캘린더 · 공고를 한곳에서</p></div>'+schedHTML();
   if(!packs.length){
     h+='<div class="empty"><h2>아직 꾸러미가 없습니다</h2>'+
        '<p>JSON 파일을 불러오면 여기에 쌓입니다. 시험별로 하나씩 두고 필요할 때 골라 푸세요.</p></div>';
