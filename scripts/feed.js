@@ -29,13 +29,27 @@ function slim(it){
   };
 }
 
+// 공공데이터포털 API가 잠깐 끊기는 일이 잦아서, 실패하면 간격을 늘려 가며 다시 시도한다
+async function getJSON(url, tries = 4){
+  let last;
+  for (let i = 0; i < tries; i++){
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      last = e;
+      if (i < tries - 1) await new Promise(r => setTimeout(r, 15000 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
 async function fetchAll(key){
   const items = [];
   for (let page = 1; page <= 20; page++){
     const q = new URLSearchParams({ serviceKey: key, resultType: "json", ongoingYn: "Y", numOfRows: "100", pageNo: String(page) });
-    const res = await fetch(`${API}?${q}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const j = await res.json();
+    const j = await getJSON(`${API}?${q}`);
     if (j.resultCode !== 200 && j.resultCode !== 0) throw new Error(`API ${j.resultCode} ${j.resultMsg}`);
     const rows = (j.result || []).map(r => r.item || r);
     items.push(...rows);
@@ -56,4 +70,8 @@ async function main(){
   console.log(`진행 중 공고 ${items.length}건 저장`);
 }
 
-main().catch(e => { console.error(e.message); process.exit(1); });
+// 알리오 쪽 장애로 못 받아오면 기존 feed.json을 그대로 두고 경고만 남긴다 (실패 메일·빈 목록 방지)
+main().catch(e => {
+  console.log(`::warning::공고를 받아오지 못해 기존 목록을 유지합니다: ${e.message}`);
+  if (e.message.includes("ALIO_KEY")) process.exit(1);
+});
