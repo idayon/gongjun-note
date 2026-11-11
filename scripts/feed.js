@@ -58,6 +58,31 @@ async function fetchAll(key){
   return items;
 }
 
+// 잡알리오 상세 페이지에서 첨부파일(공고문 등) 이름과 번호를 읽는다. 이미 읽은 공고는 지난 feed.json 값을 재사용.
+const VIEW = "https://job.alio.go.kr/recruitview.do?idx=";
+async function filesOf(sn){
+  for (let i = 0; i < 2; i++){
+    try {
+      const res = await fetch(VIEW + sn, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const out = [], re = /download\.json\?fileNo=(\d+)"\s*target="_blank">([^<]+)</g;
+      let m; while ((m = re.exec(html))) if (!out.some(f => f[0] === +m[1])) out.push([+m[1], m[2].trim()]);
+      return out;
+    } catch (e) { if (i) return null; await new Promise(r => setTimeout(r, 3000)); }
+  }
+}
+async function attachFiles(items){
+  let prev = {};
+  try { JSON.parse(fs.readFileSync(path.join(__dirname, "..", "feed.json"), "utf8")).items.forEach(x => { if (x.files) prev[x.sn] = x.files; }); } catch (e) {}
+  const todo = items.filter(x => !(prev[x.sn]));
+  items.forEach(x => { if (prev[x.sn]) x.files = prev[x.sn]; });
+  let i = 0; const stopAt = Date.now() + 4 * 60e3;   // 한 번에 최대 4분, 못 한 건 다음 실행 때
+  async function worker(){ while (i < todo.length && Date.now() < stopAt){ const x = todo[i++]; const f = await filesOf(x.sn); if (f) x.files = f; } }
+  await Promise.all([1,2,3,4].map(worker));
+  console.log(`첨부파일 새로 확인 ${todo.length}건`);
+}
+
 async function main(){
   const key = process.env.ALIO_KEY;
   if (!key) throw new Error("ALIO_KEY 환경변수가 없습니다");
@@ -65,6 +90,7 @@ async function main(){
   const today = kst.slice(0, 10);
   const items = (await fetchAll(key)).map(slim).filter(x => x.end && x.end >= today);
   items.sort((a, b) => a.end < b.end ? -1 : a.end > b.end ? 1 : 0);
+  try { await attachFiles(items); } catch (e) { console.log(`::warning::첨부파일 확인 실패: ${e.message}`); }
   const out = { updated: kst.slice(0, 16).replace("T", " "), source: "공공데이터포털 공공기관 채용정보 조회서비스", items };
   fs.writeFileSync(path.join(__dirname, "..", "feed.json"), JSON.stringify(out) + "\n");
   console.log(`진행 중 공고 ${items.length}건 저장`);
