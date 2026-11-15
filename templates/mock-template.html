@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>모의 과제 1 · 연구관리 AI 시범사업</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1a1f2b;--sub:#5b6474;--line:#e3e6ec;--accent:#1f5fd1;--accent-soft:#e8f0fe;--warn-bg:#fff7e0;--warn-line:#f0d98a;--paper:#fffdf8;--cue:#f3f5f9}
+@media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--ink:#e8ebf1;--sub:#9aa3b3;--line:#2c3340;--accent:#7aa7ff;--accent-soft:#1d2b47;--warn-bg:#2b2616;--warn-line:#5a4d1f;--paper:#1f232c;--cue:#161a22}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;line-height:1.6;font-size:15px;word-break:keep-all;display:flex;flex-direction:column}
+a{color:var(--accent)}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:5px 12px;border-radius:999px;font:inherit;font-size:.84rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){.btn.pri{color:#10131a}}
+
+/* 맨 위 고정: 제목 + 타이머 + 과제 */
+.head{flex:none;background:var(--card);border-bottom:2px solid var(--accent)}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 14px}
+.bar h1{font-size:.98rem;margin:0 6px 0 0;white-space:nowrap}
+.clock{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;min-width:74px}
+.back{margin-left:auto;font-size:.84rem}
+.task{display:flex;gap:12px;align-items:flex-start;padding:4px 14px 10px;font-size:.9rem}
+.task .lab{flex:none;background:var(--accent);color:#fff;border-radius:6px;font-weight:800;font-size:.78rem;padding:2px 8px;margin-top:2px}
+@media (prefers-color-scheme:dark){.task .lab{color:#10131a}}
+.task ol{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px}
+.task li b{color:var(--accent)}
+.task .cond{color:var(--sub);font-size:.82rem;margin-top:2px}
+
+/* 본문: 왼쪽 자료 | 오른쪽 코넬 답안 */
+.split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+.pane{min-height:0;display:flex;flex-direction:column}
+.left{border-right:1px solid var(--line)}
+.tabs{flex:none;display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{flex:none;min-width:44px;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:8px;padding:6px 10px;font:inherit;font-size:.88rem;font-weight:800;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.view{flex:1;min-height:0;overflow:auto;padding:14px 16px}
+.doc{display:none;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.doc.on{display:block}
+.doc h2{font-size:1rem;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+.num{flex:none;background:var(--ink);color:var(--bg);border-radius:6px;font-size:.76rem;padding:2px 8px}
+.meta{font-size:.84rem;color:var(--sub);border-bottom:1px dashed var(--line);padding-bottom:8px;margin-bottom:10px}
+.doc p{margin:6px 0}
+.doc ul{margin:6px 0;padding-left:1.25em}
+.doc li{margin:4px 0}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--accent-soft);white-space:nowrap}
+td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.warn{background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;padding:8px 12px;font-size:.82rem;margin:0 0 12px}
+.nav{flex:none;display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--line)}
+.pos{font-size:.84rem;color:var(--sub)}
+
+/* 코넬식 답안 */
+.right{overflow:auto;padding:12px 14px}
+.rhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.rhead b{font-size:.95rem}
+.cnt{font-size:.82rem;color:var(--sub)}
+.cnt b{color:var(--ink)}
+.cornell{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.row{display:grid;grid-template-columns:150px minmax(0,1fr);border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.cue{background:var(--cue);border-right:2px solid var(--line);padding:10px 12px;font-size:.84rem}
+.cue b{display:block;font-size:.88rem;margin-bottom:4px}
+.cue small{color:var(--sub);line-height:1.45;display:block}
+.cue .c{margin-top:6px;font-size:.76rem;color:var(--sub)}
+.cell{padding:6px}
+.cell textarea{width:100%;min-height:96px;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:.93rem;line-height:1.7;resize:vertical;padding:6px 8px}
+.cell textarea:focus{background:var(--accent-soft);border-radius:8px}
+.row.sum{border-top:2px solid var(--ink)}
+.row.sum .cue{background:var(--accent-soft)}
+.rfoot{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.hint{font-size:.76rem;color:var(--sub);margin-left:auto}
+
+@media (max-width:800px){
+  .bar h1{display:none}
+  .task ol{display:block}
+  .split{grid-template-columns:1fr;grid-template-rows:45% 55%}
+  .left{border-right:0;border-bottom:2px solid var(--line)}
+  .row{grid-template-columns:96px minmax(0,1fr)}
+  .cue small{display:none}
+  .hint{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="bar">
+    <h1>모의 과제 1 · 연구관리 AI 시범사업</h1>
+    <span class="clock" id="clock">40:00</span>
+    <button class="btn pri" id="start">시작</button>
+    <button class="btn" id="pause">멈춤</button>
+    <button class="btn" id="reset">40분으로</button>
+    <a class="back" href="./">← 대비 노트</a>
+  </div>
+  <div class="task">
+    <span class="lab">과제</span>
+    <div>
+      <div>자료를 근거로 <b>시범사업 1건</b>을 골라 초안을 작성하시오.</div>
+      <ol><li><b>①</b> 대상 업무와 선정 이유</li><li><b>②</b> 운영 방법</li><li><b>③</b> 위험과 대책</li><li><b>④</b> 예산 배분 (3억 원 이내)</li><li><b>⑤</b> 성과 지표와 확대 조건</li></ol>
+      <div class="cond">40분 · 1,000~1,500자 · 개조식 가능</div>
+    </div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="pane left">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="view" id="view">
+      <div class="warn"><b>연습용 자료</b> · 표·설문·사례·예산 숫자는 가상 수치. 고르면 안 되는 업무와 예산 조합 문제가 섞여 있어요.</div>
+
+      <section class="doc">
+        <h2><span class="num">자료 1</span>상사 지시 메일</h2>
+        <div class="meta">받는 사람: ICT·융합 담당 신입 연구원 · 제목: AI 도입 시범사업 계획 초안 요청</div>
+        <p>AX 추진 협의체에서 내년 상반기에 <b>연구관리 업무 AI 시범사업 1건</b>을 하기로 했습니다. 우리 단에서 후보 업무를 골라 <b>시범 대상, 방법, 위험 대책, 성과 측정 방법</b>을 담은 초안을 내일 오전까지 주세요.</p>
+        <p>예산은 <b>3억 원 이내</b>, 전담 인력은 <b>2명</b>입니다. 연구자 단체에서 우려가 나오고 있으니 그 부분도 꼭 고려해 주세요.</p>
+      </section>
+
+      <section class="doc">
+        <h2><span class="num">자료 2</span>업무별 처리 현황 (내부 집계)</h2>
+        <div class="tw"><table>
+          <thead><tr><th>업무</th><th>연간 건수</th><th>1건당 처리</th><th>담당자 의견</th></tr></thead>
+          <tbody>
+            <tr><td>규정·절차 문의 응대</td><td class="n">42,000건</td><td class="n">15분</td><td>같은 질문이 70% 이상</td></tr>
+            <tr><td>보고서 형식 점검 (누락·양식 오류)</td><td class="n">18,500건</td><td class="n">25분</td><td>보완 요청 후 재제출까지 평균 9일</td></tr>
+            <tr><td>평가의견 품질 확인</td><td class="n">61,000건</td><td class="n">6분</td><td>한 줄 의견, 근거 없는 의견이 약 12%</td></tr>
+            <tr><td>연구부정 조사 진행 관리</td><td class="n">83건 (5년)</td><td class="n">—</td><td>기한 초과 59%, 진행 기록이 담당자마다 다름</td></tr>
+            <tr><td>과제 선정 점수 산정</td><td class="n">5,460건 (신규)</td><td class="n">—</td><td>평가위원이 산정, 재단은 취합</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="doc">
+        <h2><span class="num">자료 3</span>연구자 설문 (응답 1,200명)</h2>
+        <div class="tw"><table>
+          <thead><tr><th>문항</th><th>결과</th></tr></thead>
+          <tbody>
+            <tr><td>AI가 내 과제 <b>평가(점수)</b>에 관여하는 것</td><td class="n">반대 78%</td></tr>
+            <tr><td>AI가 <b>규정 문의·서류 점검</b>을 돕는 것</td><td class="n">찬성 81%</td></tr>
+            <tr><td>미공개 연구 내용이 AI에 입력되는 것이 걱정된다</td><td class="n">86%</td></tr>
+          </tbody>
+        </table></div>
+        <p style="margin-top:10px"><b>자유 의견</b></p>
+        <ul><li>"연구비보다 행정 서류가 더 힘들다."</li><li>"보완 요청이 늦게 와서 연구 일정이 꼬인다."</li><li>"AI가 틀린 안내를 하면 책임은 누가 지나?"</li></ul>
+      </section>
+
+      <section class="doc">
+        <h2><span class="num">자료 4</span>언론 기사 요약</h2>
+        <p>국정감사에서 연구부정 조사가 6개월 원칙을 넘긴 사례가 절반 이상이라는 지적이 나왔다. 한편 재단은 3월 <b>NRF 인공지능 위원회</b>를 만들고 <b>규정 안내 챗봇, 평가의견 적정성 확인</b>을 시범 운영 중이다. 일부 연구자 단체는 "AI 평가는 책임 소재가 불분명하다"며 신중론을 폈다.</p>
+      </section>
+
+      <section class="doc">
+        <h2><span class="num">자료 5</span>다른 기관 사례</h2>
+        <ul>
+          <li><b>A기관</b> — 외부 상용 AI로 민원 답변을 자동화. 처리 시간 60% 감소. 그러나 <b>잘못된 규정 안내 3건</b>이 언론에 보도돼 3개월 만에 중단.</li>
+          <li><b>B기관</b> — 내부 전용 환경에 규정 문서만 학습시킨 챗봇을 <b>답변마다 근거 조항을 표시</b>하는 방식으로 운영. 오답률 2% 미만, 이용자 만족도 4.3/5.</li>
+        </ul>
+      </section>
+
+      <section class="doc">
+        <h2><span class="num">자료 6</span>예산 견적</h2>
+        <div class="tw"><table>
+          <thead><tr><th>항목</th><th>금액</th></tr></thead>
+          <tbody>
+            <tr><td>내부 전용 환경 구축 (6개월)</td><td class="n">2.2억 원</td></tr>
+            <tr><td>외부 상용 서비스 이용 (1년)</td><td class="n">0.6억 원</td></tr>
+            <tr><td>직원 교육</td><td class="n">0.3억 원</td></tr>
+            <tr><td>성과 검증 용역</td><td class="n">0.5억 원</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="doc">
+        <h2><span class="num">자료 7</span>관련 원칙 (발췌)</h2>
+        <ul>
+          <li>과제의 선정·평가 결과는 <b>평가위원의 판단</b>으로 결정하며, 재단은 평가 절차를 관리한다.</li>
+          <li>연구자가 제출한 미공개 연구 내용은 <b>목적 외로 이용하거나 외부에 제공할 수 없다.</b></li>
+        </ul>
+      </section>
+    </div>
+    <div class="nav">
+      <button class="btn" id="prev">◀ 이전</button>
+      <span class="pos" id="pos"></span>
+      <button class="btn" id="next">다음 ▶</button>
+    </div>
+  </div>
+
+  <div class="pane right">
+    <div class="rhead">
+      <b>답안 (코넬식)</b>
+      <span class="cnt">합계 공백 포함 <b id="n1">0</b>자 · 제외 <b id="n2">0</b>자 · 목표 1,000~1,500</span>
+    </div>
+    <div class="cornell" id="cornell"></div>
+    <div class="rfoot">
+      <button class="btn pri" id="copy">답안 전체 복사</button>
+      <button class="btn" id="clear">모두 지우기</button>
+      <span class="hint">자료 넘기기: Alt + ← / → · 숫자 칸 이동: Tab</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  /* 자료 탭 */
+  const docs=[...document.querySelectorAll(".doc")];let cur=0;
+  $("tabs").innerHTML=docs.map((d,i)=>'<button class="tab" role="tab" data-i="'+i+'">'+(i+1)+'</button>').join("");
+  const tabs=[...document.querySelectorAll(".tab")];
+  function show(i){cur=(i+docs.length)%docs.length;
+    docs.forEach((d,j)=>d.classList.toggle("on",j===cur));
+    tabs.forEach((t,j)=>t.setAttribute("aria-selected",j===cur));
+    $("view").scrollTop=0;$("pos").textContent="자료 "+(cur+1)+" / "+docs.length+" · "+docs[cur].querySelector("h2").textContent.replace(/^자료 \d+/,"");}
+  tabs.forEach(t=>t.onclick=()=>show(+t.dataset.i));
+  $("prev").onclick=()=>show(cur-1);$("next").onclick=()=>show(cur+1);
+  document.addEventListener("keydown",e=>{if(e.altKey&&e.key==="ArrowRight"){e.preventDefault();show(cur+1);}if(e.altKey&&e.key==="ArrowLeft"){e.preventDefault();show(cur-1);}});
+  show(0);
+
+  /* 코넬식 답안: 왼쪽 단서 칸 | 오른쪽 답 칸, 맨 아래 요약 */
+  const ROWS=[
+    ["q1","① 대상 업무·선정 이유","어떤 업무? 왜 이것인가 (자료 몇 번 근거)"],
+    ["q2","② 운영 방법","누가·어떻게·언제 (단계)"],
+    ["q3","③ 위험과 대책","오답·보안·책임 → 각각 대책"],
+    ["q4","④ 예산 배분","3억 이내 · 항목별 금액 합계"],
+    ["q5","⑤ 성과 지표·확대 조건","무엇을 재고, 몇이면 확대?"],
+    ["sum","결론 한 문장 (요약)","보고서 맨 앞에 들어갈 문장",true]
+  ];
+  const KEY="nrf-mock1c";let data={};try{data=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
+  $("cornell").innerHTML=ROWS.map(r=>'<div class="row'+(r[3]?' sum':'')+'"><div class="cue"><b>'+r[1]+'</b><small>'+r[2]+'</small><div class="c" id="c_'+r[0]+'">0자</div></div><div class="cell"><textarea id="t_'+r[0]+'" aria-label="'+r[1]+'"></textarea></div></div>').join("");
+  ROWS.forEach(r=>{const ta=$("t_"+r[0]);ta.value=data[r[0]]||"";ta.addEventListener("input",()=>{data[r[0]]=ta.value;try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}count();});});
+  function count(){let a=0,b=0;ROWS.forEach(r=>{const v=$("t_"+r[0]).value;a+=v.length;b+=v.replace(/\s/g,"").length;$("c_"+r[0]).textContent=v.length+"자";});$("n1").textContent=a.toLocaleString();$("n2").textContent=b.toLocaleString();}
+  count();
+  function full(){const order=["sum","q1","q2","q3","q4","q5"];return order.map(k=>{const r=ROWS.find(x=>x[0]===k);const v=$("t_"+k).value.trim();return v?"["+r[1]+"]\n"+v:"";}).filter(Boolean).join("\n\n");}
+  $("copy").onclick=async()=>{const t=full();try{await navigator.clipboard.writeText(t)}catch(e){const x=document.createElement("textarea");x.value=t;document.body.appendChild(x);x.select();document.execCommand("copy");x.remove();}$("copy").textContent="복사됨 ✓";setTimeout(()=>$("copy").textContent="답안 전체 복사",1500);};
+  $("clear").onclick=()=>{if(confirm("답안을 모두 지울까요?")){ROWS.forEach(r=>$("t_"+r[0]).value="");data={};try{localStorage.removeItem(KEY)}catch(e){}count();}};
+
+  /* 타이머 */
+  let left=2400,t=null;const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+  function draw(){$("clock").textContent=left>0?fmt(left):"끝!";$("clock").style.color=left<=0?"#dc2626":left<=300?"#d97706":"";}
+  $("start").onclick=()=>{if(t)return;t=setInterval(()=>{left--;draw();if(left<=0){clearInterval(t);t=null;try{navigator.vibrate&&navigator.vibrate(400)}catch(e){}}},1000);};
+  $("pause").onclick=()=>{clearInterval(t);t=null;};
+  $("reset").onclick=()=>{clearInterval(t);t=null;left=2400;draw();};
+  draw();
+})();
+</script>
+</body>
+</html>
