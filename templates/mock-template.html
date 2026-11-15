@@ -55,11 +55,11 @@ td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* 코넬식 답안 */
 .right{overflow:auto;padding:12px 14px}
-.rhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.rhead{flex:none;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .rhead b{font-size:.95rem}
 .cnt{font-size:.82rem;color:var(--sub)}
 .cnt b{color:var(--ink)}
-.cornell{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.cornell{flex:none;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
 .row{display:grid;grid-template-columns:150px minmax(0,1fr);border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .cue{background:var(--cue);border-right:2px solid var(--line);padding:10px 12px;font-size:.84rem}
@@ -71,7 +71,7 @@ td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .cell textarea:focus{background:var(--accent-soft);border-radius:8px}
 .row.sum{border-top:2px solid var(--ink)}
 .row.sum .cue{background:var(--accent-soft)}
-.rfoot{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.rfoot{flex:none;display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
 .hint{font-size:.76rem;color:var(--sub);margin-left:auto}
 
 @media (max-width:800px){
